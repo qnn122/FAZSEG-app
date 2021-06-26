@@ -15,9 +15,7 @@ A full report of this work can be found [here](https://drive.google.com/file/d/1
 ## Setup Environment
 Create a virtual environment and install dependency libraries
 ```bash
-conda create -n fazseg python=3.6
-conda activate fazseg
-pip install -r requirements.txt
+conda env create -f environment.yml
 ```
 
 ## Streamlit app
