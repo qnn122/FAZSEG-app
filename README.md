@@ -22,3 +22,5 @@ Run
 ```bash
 streamlit run streamlit_app.py
 ```
+
+The app is publicly avaiable at: https://share.streamlit.io/qnn122/FAZSEG-app/main/streamlit_app.py
