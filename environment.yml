@@ -1,4 +1,4 @@
-name: fazseg-app
+name: base
 dependencies:
   - python=3.6.13
   - pip==21.1.2
