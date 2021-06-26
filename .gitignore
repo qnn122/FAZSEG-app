@@ -1,0 +1,12 @@
+.vscode/
+
+# notebook and pycache
+**/.ipynb_checkpoints/
+**/__pycache__/
+
+# MacOS
+**/.DS_Store
+
+# data and models
+data/
+models/
