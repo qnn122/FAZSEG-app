@@ -1,9 +1,9 @@
 import numpy as np
 import scipy.ndimage.filters as filters
-import cv2
 import matplotlib.pyplot as plt
 import torch
 from skimage.color import rgb2gray
+from scipy.ndimage.morphology import binary_erosion
 
 # Prepare hyper-parameter for levelset
 timestep = 1        # time step
@@ -15,6 +15,94 @@ alfa = -3           # coefficient of the weighted area term A(phi)
 epsilon = 1.5       # parameter that specifies the width of the DiracDel
 sigma = 0.8         # scale parameter in Gaussian kernel
 potentialFunction = 'double-well'
+
+
+def levelset_optmized(levelset_img, mask):
+	'''Optimised Level set for OCTA UNet
+	Parameters:
+	-----------
+	image : can be tensor with shape=(c, H, W) or a numpy array
+		original image
+	mask : numpy.ndarray with shape=(H,W)
+		2D array of the ROIs to be processed
+
+	Returns:
+	--------
+	phi : numpy array with shape=[H,W]
+	    a gray scale image of ROIs
+
+	phi_erosed : numpy array with shape=[H,W]
+	    a gray scale image of ROIs, levelset + erosion
+	See more: segmensingle.py
+	---------
+	'''
+	levelset_img = levelset_img * 255
+	levelset_img = levelset_img.astype(np.uint8)
+	levelset_img = levelset_img.astype(np.float32)
+	phi = mask.copy()
+
+	# Erosion the output mask
+	kernel1 = np.array([[0, 0, 1, 0, 0],
+				[0, 1, 1, 1, 0],
+				[1, 1, 1, 1, 1],
+				[0, 1, 1, 1, 0],
+				[0, 0, 1, 0, 0]])   
+	kernel2 = np.ones((5,5))
+	phi_erosed = binary_erosion(phi, kernel1, iterations = 3)
+	phi = 1-phi
+	phi_erosed = 1-phi_erosed
+
+	# Hyperparameters for level set
+	timestep = 1        # time step
+	mu = 0.2/timestep   # coefficient of the distance regularization term R(phi)
+	iter_inner = 5
+	iter_outer = 24
+	lmda = 5            # coefficient of the weighted length term L(phi)
+	alfa = -3           # coefficient of the weighted area term A(phi)
+	epsilon = 1.5       # parameter that specifies the width of the DiracDel
+	sigma = 0.8         # scale parameter in Gaussian kernel
+	img_smooth = filters.gaussian_filter(levelset_img, sigma) # smooth image by Gaussian convolution
+	[Iy, Ix] = np.gradient(img_smooth)
+	f = np.square(Ix) + np.square(Iy)
+	g = 1 / (1+f)       # edge indicator function.
+	potentialFunction = 'double-well'
+
+	# Start level set evolution
+	for n in range(iter_outer):
+		phi = drlse_edge(phi, g, lmda, mu, alfa, epsilon, timestep, iter_inner, potentialFunction)
+	iter_refine = 10
+	phi = drlse_edge(phi, g, lmda, mu, alfa, epsilon, timestep, iter_refine, potentialFunction)
+
+	# Preprocessing part with erosion
+	for n in range(iter_outer):
+		phi_erosed = drlse_edge(phi_erosed, g, lmda, mu, alfa, epsilon, 
+								timestep, iter_inner, potentialFunction)
+	iter_refine = 10
+	phi_erosed = drlse_edge(phi_erosed, g, lmda, mu, alfa, epsilon, 
+							timestep, iter_refine, potentialFunction)
+	phi_erosed = phi_erosed -np.min(phi_erosed)
+	phi_erosed = phi_erosed / np.max(phi_erosed)
+	phi_erosed = 1-phi_erosed
+	phi_erosed = (phi_erosed > 0.6) * 1.0
+	kernel2 = np.ones((5,5))
+	#         kernel1= np.ones((3,3))
+	#         phi_erosed = binary_erosion(phi_erosed, kernel2, iterations = 2)
+	#         phi_erosed = binary_dilation(phi_erosed, kernel2, iterations=1)
+
+	# Preprocessing mask output
+	phi = phi -np.min(phi)
+	phi = phi / np.max(phi)
+	phi = 1-phi
+	phi = (phi > 0.6) * 1.0
+
+	# dilation and erosion to remove noise
+	kernel = np.array([[0, 0, 1, 0, 0],
+						[0, 1, 1, 1, 0],
+						[1, 1, 1, 1, 1],
+						[0, 1, 1, 1, 0],
+						[0, 0, 1, 0, 0]])  
+	kernel2 = np.ones((5,5))
+	return phi, phi_erosed
 
 
 def levelset(image, mask, iter_outer, isplot=False):
