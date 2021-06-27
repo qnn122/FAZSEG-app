@@ -8,7 +8,11 @@ import matplotlib.pyplot as plt
 import copy
 
 from src.FAZSegmentator import FAZSegmentator
+from src.utils import CustomBinarize
 
+CONVERTION_FACTOR = 0.0055
+
+#
 st.set_page_config(layout='wide')
 
 # ----------- Dowload model ------------------
@@ -53,29 +57,10 @@ def contourize(im, mask):
 	imgout = cv2.drawContours(np.array(im), [cnt], -1, (0,255,0), 2)
 	return imgout
 
-### ---------- RENDER ----------####
-# SIDE BAR
-st.sidebar.write('#### Select an image to upload.')
-uploaded_file = st.sidebar.file_uploader('', type=['png', 'jpg', 'jpeg'], accept_multiple_files=False)
-converstion_factor = st.sidebar.text_input('Conversion factor', value='0.0055')
-
-
-# MAIN COMPONENT
-## TOP
-st.write('# FAZ Segmentation Tool')
-
-USE_COLUMN_WIDTH = True
-
-## BODY
-st.markdown('##')
-if uploaded_file is None:
-    # Default image.
-    image = np.ones((360,640))
-    st.image(image, use_column_width=USE_COLUMN_WIDTH)    
-else:
-	# User-selected image.
-	image = Image.open(uploaded_file).convert("RGB")
+def analyze(image):
 	image_np = np.array(image)
+	H, W, _ = image_np.shape
+	area = H*W*convertion_factor**2
 
 	# Original image and enhanced one
 	cols = st.beta_columns(4)
@@ -85,17 +70,57 @@ else:
 	cols[1].write('### Enhanced image')
 	cols[1].image(enhanced_image)
 	cols[2].write('### Info')
-	cols[2].write('Image dimention: (123, 302)')
-	cols[2].write('Size: 2.3043 m^2')
-	cols[2].write('Area: 3938 m^2')
+	with cols[2]:
+		st.write('Image dimention: H={} x W={} (pixels)'.format(H, W))
+		st.write('Area: ', round(area, 3), ' $mm^2$')
 
 	# Unet + Levelset
 	st.write("### UNet + LevelSet Segmentation")
 	cols = st.beta_columns(4)
 	cols[0].image(phi_erosed)
 	cols[1].image(contourize(enhanced_image, phi_erosed))
-	FAZpixel = 493
-	FAZarea = 2.3948
-	cols[2].image(phi_erosed)
+	FAZpixel = np.sum(np.array(phi_erosed)/255)
+	FAZarea = FAZpixel*(convertion_factor**2)
 	cols[3].write('### Analysis Results')
-	cols[3].write('FAZ Area: **3.3948** mm^2')
+	with cols[3]:
+		st.write('FAZ Area: ', round(FAZarea,3), ' $mm^2$')
+	
+	# Calc Vessel Area Density (VAD)
+	BW = CustomBinarize(np.array(enhanced_image.convert('L')))
+	cols[2].image(BW)
+	vesselpixel = np.count_nonzero(BW==255)
+	VAD = vesselpixel/(H*W)*100
+	with cols[3]:
+		st.write('Vessel Area Density: ', round(VAD,2), '%')
+
+### ---------- RENDER ----------####
+# SIDE BAR
+st.sidebar.write('#### Upload and image')
+uploaded_file = st.sidebar.file_uploader('', type=['png', 'jpg', 'jpeg'], accept_multiple_files=False)
+sample = st.sidebar.selectbox(
+	'or Select a sample',
+	('-', '1.png', '2.png', '3.png'))
+convertion_factor = st.sidebar.text_input('Conversion factor', value=str(CONVERTION_FACTOR))
+convertion_factor = float(convertion_factor)
+
+# MAIN COMPONENT
+## TOP
+st.write('# FAZ Segmentation Tool')
+
+USE_COLUMN_WIDTH = True
+
+## BODY
+st.markdown('##')
+if sample is not '-':
+	impath = 'samples/' + sample
+	image = Image.open(impath).convert("RGB")
+	analyze(image)
+
+if uploaded_file is None:
+    # Default image.
+    image = np.ones((360,640))
+    st.image(image, use_column_width=USE_COLUMN_WIDTH)    
+else:
+	# User-selected image.
+	image = Image.open(uploaded_file).convert("RGB")
+	analyze(image)
