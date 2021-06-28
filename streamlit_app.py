@@ -31,13 +31,11 @@ def download_model():
             from src.GD_download import download_file_from_google_drive
             download_file_from_google_drive(cloud_model_location, f_checkpoint)
 
-@st.cache
 def load_model():
 	MODELPATH = 'models/Se_resnext50-920eef84.pth'
 	segmentator = FAZSegmentator(model_path=MODELPATH)
 	return segmentator
 
-@st.cache(allow_output_mutation=True)
 def initialization():
 	download_model()
 	return load_model()
