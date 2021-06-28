@@ -121,6 +121,7 @@ st.markdown('##')
 
 # Select a sample
 if sample is not '-':
+	uploaded_file = None
 	impath = 'samples/' + sample
 	image = Image.open(impath).convert("RGB")
 	analyze(image, method, segmentator)
@@ -131,6 +132,7 @@ if uploaded_file is None:
     image = np.ones((360,640))
     st.image(image, use_column_width=USE_COLUMN_WIDTH)    
 else:
+	sample = '-'
 	# User-selected image.
 	image = Image.open(uploaded_file).convert("RGB")
 	analyze(image, method, segmentator)
