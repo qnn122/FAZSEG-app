@@ -31,7 +31,7 @@ def download_model():
             from src.GD_download import download_file_from_google_drive
             download_file_from_google_drive(cloud_model_location, f_checkpoint)
 
-@st.cache
+#@st.cache
 def load_model():
 	MODELPATH = 'models/Se_resnext50-920eef84.pth'
 	segmentator = FAZSegmentator(model_path=MODELPATH)
@@ -61,7 +61,7 @@ def contourize(im, mask):
 	imgout = cv2.drawContours(np.array(im), [cnt], -1, (0,255,0), 2)
 	return imgout
 
-def analyze(image, method='UNet + LevelSet'):
+def analyze(image, method='UNet + LevelSet', segmentator=None):
 	image_np = np.array(image)
 	H, W, _ = image_np.shape
 	area = H*W*convertion_factor**2
@@ -102,6 +102,7 @@ def analyze(image, method='UNet + LevelSet'):
 	VAD = vesselpixel/(H*W)*100
 	with cols[3]:
 		st.write('Vessel Area Density: ', round(VAD,2), '%')
+	del segmentator
 
 ### ---------- RENDER ----------####
 segmentator = copy.deepcopy(initialization())
@@ -131,7 +132,7 @@ st.markdown('##')
 if sample is not '-':
 	impath = 'samples/' + sample
 	image = Image.open(impath).convert("RGB")
-	analyze(image, method)
+	analyze(image, method, segmentator)
 
 # Upload a file
 if uploaded_file is None:
@@ -141,4 +142,4 @@ if uploaded_file is None:
 else:
 	# User-selected image.
 	image = Image.open(uploaded_file).convert("RGB")
-	analyze(image, method)
+	analyze(image, method, segmentator)
