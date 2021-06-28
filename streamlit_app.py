@@ -1,10 +1,8 @@
 import streamlit as st
 from PIL import Image
 import numpy as np
-import torch
 from pathlib import Path
 import cv2
-import matplotlib.pyplot as plt
 import copy
 
 from src.FAZSegmentator import FAZSegmentator
@@ -20,16 +18,15 @@ cloud_model_location = "1SxJQeT37bgdJgvZHAqrhNnPRBbaqT_Ax"
 
 @st.cache
 def load_model():
+	save_dest = Path('models')
+	save_dest.mkdir(exist_ok=True)
 
-    save_dest = Path('models')
-    save_dest.mkdir(exist_ok=True)
-    
-    f_checkpoint = Path("models/Se_resnext50-920eef84.pth")
+	f_checkpoint = Path("models/Se_resnext50-920eef84.pth")
 
-    if not f_checkpoint.exists():
-        with st.spinner("Downloading model... this may take awhile! \n Don't stop it!"):
-            from src.GD_download import download_file_from_google_drive
-            download_file_from_google_drive(cloud_model_location, f_checkpoint)
+	if not f_checkpoint.exists():
+		with st.spinner("Downloading model... this may take awhile! \n Don't stop it!"):
+			from src.GD_download import download_file_from_google_drive
+			download_file_from_google_drive(cloud_model_location, f_checkpoint)
 
 	MODELPATH = 'models/Se_resnext50-920eef84.pth'
 	segmentator = FAZSegmentator(model_path=MODELPATH)
