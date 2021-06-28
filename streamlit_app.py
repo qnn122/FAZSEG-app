@@ -19,7 +19,7 @@ st.set_page_config(layout='wide')
 cloud_model_location = "1SxJQeT37bgdJgvZHAqrhNnPRBbaqT_Ax"
 
 @st.cache
-def download_model():
+def load_model():
 
     save_dest = Path('models')
     save_dest.mkdir(exist_ok=True)
@@ -31,15 +31,9 @@ def download_model():
             from src.GD_download import download_file_from_google_drive
             download_file_from_google_drive(cloud_model_location, f_checkpoint)
 
-#@st.cache
-def load_model():
 	MODELPATH = 'models/Se_resnext50-920eef84.pth'
 	segmentator = FAZSegmentator(model_path=MODELPATH)
 	return segmentator
-
-def initialization():
-	download_model()
-	return load_model()
 
 # ----------- Some helpers -------------
 def contourize(im, mask):
@@ -102,10 +96,10 @@ def analyze(image, method='UNet + LevelSet', segmentator=None):
 	VAD = vesselpixel/(H*W)*100
 	with cols[3]:
 		st.write('Vessel Area Density: ', round(VAD,2), '%')
-	del segmentator
+	#del segmentator
 
 ### ---------- RENDER ----------####
-segmentator = copy.deepcopy(initialization())
+segmentator = copy.deepcopy(load_model())
 
 # SIDE BAR
 st.sidebar.write('#### Upload and image')
