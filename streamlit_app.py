@@ -15,11 +15,11 @@ CONVERTION_FACTOR = 0.0055
 #
 st.set_page_config(layout='wide')
 
-# ----------- Dowload model ------------------
+# ----------- Dowload and load model ------------------
 cloud_model_location = "1SxJQeT37bgdJgvZHAqrhNnPRBbaqT_Ax"
 
 @st.cache
-def load_model():
+def download_model():
 
     save_dest = Path('models')
     save_dest.mkdir(exist_ok=True)
@@ -31,11 +31,16 @@ def load_model():
             from src.GD_download import download_file_from_google_drive
             download_file_from_google_drive(cloud_model_location, f_checkpoint)
 
-load_model()
+@st.cache
+def load_model():
+	MODELPATH = 'models/Se_resnext50-920eef84.pth'
+	segmentator = FAZSegmentator(model_path=MODELPATH)
+	return segmentator
 
-# LOAD MODEL
-MODELPATH = 'models/Se_resnext50-920eef84.pth'
-segmentator = FAZSegmentator(model_path=MODELPATH)
+@st.cache(allow_output_mutation=True)
+def initialization():
+	download_model()
+	return load_model()
 
 # ----------- Some helpers -------------
 def contourize(im, mask):
@@ -57,7 +62,7 @@ def contourize(im, mask):
 	imgout = cv2.drawContours(np.array(im), [cnt], -1, (0,255,0), 2)
 	return imgout
 
-def analyze(image):
+def analyze(image, method='UNet + LevelSet'):
 	image_np = np.array(image)
 	H, W, _ = image_np.shape
 	area = H*W*convertion_factor**2
@@ -71,15 +76,21 @@ def analyze(image):
 	cols[1].image(enhanced_image)
 	cols[2].write('### Info')
 	with cols[2]:
-		st.write('Image dimention: H={} x W={} (pixels)'.format(H, W))
+		st.write('Image dimention (pixels): \
+				{}(H) x {}(W)'.format(H, W))
 		st.write('Area: ', round(area, 3), ' $mm^2$')
 
+	if method == 'UNet + LevelSet':
+		processed = phi_erosed
+	else:
+		processed = mask
+
 	# Unet + Levelset
-	st.write("### UNet + LevelSet Segmentation")
+	st.write(f"### {method} Segmentation")
 	cols = st.beta_columns(4)
-	cols[0].image(phi_erosed)
-	cols[1].image(contourize(enhanced_image, phi_erosed))
-	FAZpixel = np.sum(np.array(phi_erosed)/255)
+	cols[0].image(processed)
+	cols[1].image(contourize(enhanced_image, processed))
+	FAZpixel = np.sum(np.array(processed)/255)
 	FAZarea = FAZpixel*(convertion_factor**2)
 	cols[3].write('### Analysis Results')
 	with cols[3]:
@@ -94,6 +105,8 @@ def analyze(image):
 		st.write('Vessel Area Density: ', round(VAD,2), '%')
 
 ### ---------- RENDER ----------####
+segmentator = initialization()
+
 # SIDE BAR
 st.sidebar.write('#### Upload and image')
 uploaded_file = st.sidebar.file_uploader('', type=['png', 'jpg', 'jpeg'], accept_multiple_files=False)
@@ -103,6 +116,9 @@ sample = st.sidebar.selectbox(
 convertion_factor = st.sidebar.text_input('Conversion factor', value=str(CONVERTION_FACTOR))
 convertion_factor = float(convertion_factor)
 
+method = st.sidebar.radio("Choose Method",
+		('UNet + LevelSet', 'UNet'))
+
 # MAIN COMPONENT
 ## TOP
 st.write('# FAZ Segmentation Tool')
@@ -111,11 +127,14 @@ USE_COLUMN_WIDTH = True
 
 ## BODY
 st.markdown('##')
+
+# Select a sample
 if sample is not '-':
 	impath = 'samples/' + sample
 	image = Image.open(impath).convert("RGB")
-	analyze(image)
+	analyze(image, method)
 
+# Upload a file
 if uploaded_file is None:
     # Default image.
     image = np.ones((360,640))
@@ -123,4 +142,4 @@ if uploaded_file is None:
 else:
 	# User-selected image.
 	image = Image.open(uploaded_file).convert("RGB")
-	analyze(image)
+	analyze(image, method)

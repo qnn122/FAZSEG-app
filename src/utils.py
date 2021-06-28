@@ -24,13 +24,12 @@ def CustomBinarize(inputImg, commonThreshold=None):
     """
     boxSize = 5
     hs = int((boxSize - 1)/2)
-    W, H = inputImg.shape # TODO: check, be careful
+    H, W = inputImg.shape
     
     if commonThreshold is None:
         commonThreshold = np.sum(inputImg)/(W*H)
     commonThreshold = 20 # ???
     
-    print("T = ", commonThreshold)
     #
     CH = np.ones((H,W))*commonThreshold
     for x in range(hs + 1, W - hs -1):
