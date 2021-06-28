@@ -31,6 +31,7 @@ def download_model():
             from src.GD_download import download_file_from_google_drive
             download_file_from_google_drive(cloud_model_location, f_checkpoint)
 
+@st.cache
 def load_model():
 	MODELPATH = 'models/Se_resnext50-920eef84.pth'
 	segmentator = FAZSegmentator(model_path=MODELPATH)
@@ -103,7 +104,7 @@ def analyze(image, method='UNet + LevelSet'):
 		st.write('Vessel Area Density: ', round(VAD,2), '%')
 
 ### ---------- RENDER ----------####
-segmentator = initialization()
+segmentator = copy.deepcopy(initialization())
 
 # SIDE BAR
 st.sidebar.write('#### Upload and image')
